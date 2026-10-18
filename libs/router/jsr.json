@@ -1,0 +1,13 @@
+{
+  "name": "@gems-of-ts/router",
+  "version": "0.0.0",
+  "license": "MIT",
+  "exports": {
+    "./server": "./src/server/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "publish": {
+    "include": ["src"],
+    "exclude": ["src/**/*.test.ts"]
+  }
+}

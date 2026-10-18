@@ -1,0 +1,25 @@
+{
+  "name": "gems-of-typescript",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Great libraries that can only be built with TypeScript.",
+  "type": "module",
+  "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "release": "turbo run build && node scripts/publish.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  }
+}

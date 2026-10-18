@@ -1,0 +1,41 @@
+{
+  "name": "@gems-of-ts/parser",
+  "version": "0.0.0",
+  "description": "A declarative grammar that parses text into a discriminated AST with types inferred from the grammar.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bench": "tsx bench/parser.bench.ts",
+    "profile": "node --cpu-prof --cpu-prof-dir=.profiles --import tsx bench/profile.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
