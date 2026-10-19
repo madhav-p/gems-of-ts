@@ -66,9 +66,10 @@ User.compile()(input)              // ~2.8× faster standalone validator
 
 Highlights: immutable callback/view DSL · per-builder format registry (add /
 override, with sub-string *parts* like `email.domain` and `url.host`) · branded
-formatted strings (`string & { __format: 'email' }`) · optional · arrays with
-validated mutators · JSON Schema · `parse` / `safeParse` with structured issues ·
-`compile()` for a standalone fast validator.
+formatted strings (`string & { __format: 'email' }`) · optional · literals
+(`'admin'`, `null`) · arrays with validated mutators · JSON Schema ·
+`parse` / `safeParse` with structured issues · `compile()` for a standalone fast
+validator.
 
 ### `@gems-of-ts/parser`
 

@@ -37,6 +37,7 @@ User.toJSONSchema()         // { type: 'object', properties: { ... }, ... }
   - [string](#string)
   - [number](#number)
   - [boolean](#boolean)
+  - [literal](#literal)
   - [array](#array)
   - [optional](#optional)
   - [Formats](#formats)
@@ -76,7 +77,7 @@ const t = createSchemaBuilder({
   // numberFormats: { ... },
 })
 
-t.object, t.string, t.number, t.boolean, t.array
+t.object, t.string, t.number, t.boolean, t.literal, t.array
 ```
 
 Built-in formats (`email`, `url`, `int`) are always available; anything you pass
@@ -170,6 +171,21 @@ t.number((n) => n.format('int').min(0))
 ```ts
 t.boolean()
 ```
+
+### literal
+
+```ts
+t.literal('admin')   // parses only 'admin' — type `'admin'`
+t.literal(42)        // type `42`
+t.literal(true)      // type `true`
+t.literal(null)      // type `null`
+
+t.literal('admin').optional()
+```
+
+A `literal` accepts exactly one value (string / number / boolean / `null`). The
+parsed type is the literal type itself, and it emits JSON Schema `const`:
+`{ const: 'admin' }`. It composes with objects/arrays and is enforced on mutation.
 
 ### array
 
@@ -376,7 +392,8 @@ type NumberFormatSpec = {
 
 `SchemaBuilder`, `SchemaBuilderConfig`, `StringView`, `StringSchema`, `StringFactory`,
 `NumberView`, `NumberSchema`, `NumberFactory`, `ObjectSchema`, `ArraySchema`,
-`BooleanSchema`, `StringFormatSpec`, `NumberFormatSpec`, `FormatRegistry`,
+`BooleanSchema`, `LiteralSchema`, `LiteralValue`, `StringFormatSpec`,
+`NumberFormatSpec`, `FormatRegistry`,
 `FormatConfig`, `SchemaParseError`, `SchemaIssue`, `ParseResult`, `SchemaClass`,
 `OptionalSchema`, `Branded`, `JsonSchema`.
 

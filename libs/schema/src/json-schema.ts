@@ -32,9 +32,14 @@ export type ObjectJsonSchema = {
   additionalProperties: boolean
 }
 
+export type LiteralJsonSchema = {
+  const: string | number | boolean | null
+}
+
 export type JsonSchema =
   | StringJsonSchema
   | NumberJsonSchema
   | BooleanJsonSchema
+  | LiteralJsonSchema
   | ArrayJsonSchema
   | ObjectJsonSchema

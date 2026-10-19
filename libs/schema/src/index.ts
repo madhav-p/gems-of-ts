@@ -43,9 +43,13 @@ export type {
 export { createNumber } from './number'
 export type { NumberDef, NumberFactory, NumberSchema, NumberView } from './number'
 
+export { literal } from './literal'
+export type { LiteralSchema, LiteralValue } from './literal'
+
 import { array } from './array'
 import { boolean } from './boolean'
 import { createFormatRegistry, type FormatConfig } from './formats'
+import { literal } from './literal'
 import { createNumber, type NumberFactory } from './number'
 import { object } from './object'
 import { createString, type StringFactory } from './string'
@@ -62,6 +66,7 @@ export type SchemaBuilder = {
   boolean: typeof boolean
   string: StringFactory
   number: NumberFactory
+  literal: typeof literal
 }
 
 /**
@@ -86,5 +91,6 @@ export function createSchemaBuilder(config: SchemaBuilderConfig = {}): SchemaBui
     boolean,
     string: createString(formats),
     number: createNumber(formats),
+    literal,
   }
 }
