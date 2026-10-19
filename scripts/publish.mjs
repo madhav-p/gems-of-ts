@@ -12,7 +12,10 @@
  * Packages are processed in dependency order (fewest workspace deps first) so a
  * dependency is published before its dependents.
  *
- * Env: `NODE_AUTH_TOKEN` for npm; JSR uses GitHub OIDC (`id-token: write`).
+ * Credentials:
+ *   - npm needs `NODE_AUTH_TOKEN`; without it the npm step is skipped.
+ *   - JSR uses GitHub OIDC by default, or `JSR_TOKEN` when provided. JSR failures
+ *     are logged as warnings — JSR registration isn't detectable from secrets.
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -20,6 +23,9 @@ import { join } from 'node:path'
 
 const root = process.cwd()
 const libsDir = join(root, 'libs')
+
+const npmToken = process.env.NODE_AUTH_TOKEN
+const jsrToken = process.env.JSR_TOKEN
 
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'))
 const writeJson = (file, value) => writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`)
@@ -83,20 +89,24 @@ const packages = readdirSync(libsDir)
   .filter(({ pkg }) => !pkg.private && pkg.name && pkg.version)
   .sort((a, b) => workspaceDeps(a.pkg).length - workspaceDeps(b.pkg).length)
 
-let failures = 0
+let npmFailures = 0
+
+if (!npmToken) {
+  console.log('[npm] NODE_AUTH_TOKEN is not set — skipping npm publish.')
+}
 
 for (const { dir, pkgPath, pkg } of packages) {
   // --- npm ---
-  if (isPublishedOnNpm(pkg.name, pkg.version)) {
-    console.log(`[npm] ${pkg.name}@${pkg.version} already published — skipping`)
-  } else {
+  if (npmToken && !isPublishedOnNpm(pkg.name, pkg.version)) {
     console.log(`[npm] publishing ${pkg.name}@${pkg.version}`)
     try {
       run('pnpm', ['--filter', pkg.name, 'publish', '--access', 'public', '--no-git-checks'], root)
     } catch (error) {
-      failures += 1
+      npmFailures += 1
       console.error(`[npm] failed: ${pkg.name} — ${error.message}`)
     }
+  } else if (npmToken) {
+    console.log(`[npm] ${pkg.name}@${pkg.version} already published — skipping`)
   }
 
   // --- JSR ---
@@ -108,18 +118,21 @@ for (const { dir, pkgPath, pkg } of packages) {
 
     console.log(`[jsr] publishing ${jsr.name}@${jsr.version}`)
     try {
+      const args = ['--yes', 'jsr', 'publish', '--allow-dirty']
+      if (jsrToken) {
+        args.push('--token', jsrToken)
+      }
       withJsrDependencies(pkgPath, pkg, () => {
-        run('npx', ['--yes', 'jsr', 'publish', '--allow-dirty'], dir)
+        run('npx', args, dir)
       })
     } catch (error) {
-      failures += 1
-      console.error(`[jsr] failed: ${pkg.name} — ${error.message}`)
+      console.warn(`[jsr] skipped ${pkg.name}: ${error.message}`)
     }
   }
 }
 
-if (failures > 0) {
-  console.error(`\n${failures} publish step(s) failed.`)
+if (npmFailures > 0) {
+  console.error(`\n${npmFailures} npm publish step(s) failed.`)
   process.exit(1)
 }
 console.log('\nPublish complete.')

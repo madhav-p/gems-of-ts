@@ -1,8 +1,11 @@
 name: Publish
 
-# Publishes changed packages to npm + JSR on every push to main.
-# `scripts/publish.mjs` skips any package whose version is already published,
-# so a release is triggered simply by bumping `version` in a package.json.
+# Publishes changed packages to npm (+ JSR) on every push to main.
+# `scripts/publish.mjs` skips any package whose version is already published, so
+# a release is triggered simply by bumping `version` in a package.json.
+#
+# Publishing is skipped entirely unless the `NPM_TOKEN` secret is configured, so
+# this workflow is a safe no-op on forks or before credentials are set up.
 
 on:
   push:
@@ -20,23 +23,42 @@ jobs:
       contents: read
       id-token: write # required for JSR's GitHub OIDC publishing
     steps:
-      - uses: actions/checkout@v4
+      - name: Check publish credentials
+        id: credentials
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::NPM_TOKEN is not configured — skipping publish."
+          fi
+
+      - if: steps.credentials.outputs.configured == 'true'
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - if: steps.credentials.outputs.configured == 'true'
+        uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - if: steps.credentials.outputs.configured == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - if: steps.credentials.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm run build
+      - if: steps.credentials.outputs.configured == 'true'
+        run: pnpm run build
 
       - name: Publish to npm + JSR
+        if: steps.credentials.outputs.configured == 'true'
         run: node scripts/publish.mjs
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          JSR_TOKEN: ${{ secrets.JSR_TOKEN }}
