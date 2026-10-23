@@ -1,4 +1,4 @@
-import type { SchemaClass } from '@gems-of-ts/schema'
+import type { DeepUnbrand, SchemaClass } from '@gems-of-ts/model'
 
 export type MaybePromise<T> = T | Promise<T>
 
@@ -6,14 +6,17 @@ export type RouteKind = 'query' | 'mutation' | 'subscription'
 
 /**
  * The object accepted by the world's route methods: an optional `input` schema
- * (from `@gems-of-ts/schema`), an optional `auth` predicate, the `handler`, and
+ * (from `@gems-of-ts/model`), an optional `auth` predicate, the `handler`, and
  * an optional `kind` (set automatically by `query`/`mutation`/`subscription`).
  */
 export type RouteDefinition<TInput, TOutput, TContext> = {
   kind?: RouteKind
   input?: SchemaClass<TInput>
   auth?: (context: TContext) => MaybePromise<boolean>
-  handler: (args: { input: TInput; ctx: TContext }) => MaybePromise<TOutput>
+  handler: (args: {
+    input: DeepUnbrand<TInput>
+    ctx: TContext
+  }) => MaybePromise<TOutput>
 }
 
 export type KindedRouteDefinition<TInput, TOutput, TContext> = Omit<
@@ -30,8 +33,11 @@ export type Route<TInput = undefined, TOutput = unknown, TContext = unknown> = {
   readonly kind?: RouteKind
   readonly input?: SchemaClass<TInput>
   readonly auth?: (context: TContext) => MaybePromise<boolean>
-  readonly handler: (args: { input: TInput; ctx: TContext }) => MaybePromise<TOutput>
-  readonly __types?: { input: TInput; output: TOutput }
+  readonly handler: (args: {
+    input: DeepUnbrand<TInput>
+    ctx: TContext
+  }) => MaybePromise<TOutput>
+  readonly __types?: { input: DeepUnbrand<TInput>; output: TOutput }
 }
 
 /**

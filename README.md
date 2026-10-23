@@ -14,9 +14,11 @@ const parse = createParser(JSONGrammar)
 const tree = parse('{"a": [1, true]}')
 
 // userland: no type annotations, yet `user` is a fully typed class instance
-class User extends t.object({
-  id: t.number(),
-  email: t.string((s) => s.format('email')),
+const model = createTypeBuilder()
+
+class User extends model.object({
+  id: model.number(),
+  email: model.email(),
 }) {}
 ```
 
@@ -32,44 +34,47 @@ class User extends t.object({
 4. **Performance is *not* the top priority right now** — correctness, ergonomics
    and inference are. We only care about performance when something is
    *catastrophic*, and we benchmark/profiling when we do.
-5. **Class output + validated mutation** (schema) as a deliberate alternative to
-   "parse returns a plain object": parsed values are instances of your class, and
-   assigning an invalid property re-runs validation.
+5. **Class output + validated mutation** (model) as a deliberate alternative to
+   "parse returns a plain object": parsed values are instances of your class,
+   readonly/frozen at runtime, and updates go through `mutate`, which revalidates
+   changed fields and returns a new frozen value.
 
 ## Packages
 
 | Package | What it is | Status |
 | --- | --- | --- |
-| [`@gems-of-ts/schema`](libs/schema) | Class-based schema with a callback/view DSL, JSON Schema output, format registry, branded strings, and `compile()`. | ✅ |
+| [`@gems-of-ts/model`](libs/model) | Object-syntax schemas via `createTypeBuilder` (`number`, `string`, `boolean`, `null`, `literal`, `enum`, `tuple`, `list`, `record`, `object`, discriminated unions, intersections, string formats, `int`). [Feature parity vs Zod/TypeBox](libs/model/docs/feature-parity.md). | ✅ (early) |
 | [`@gems-of-ts/parser`](libs/parser) | Declarative grammar (tokens + nodes) that parses text into a discriminated AST **whose type is inferred from the grammar**. | ✅ |
-| [`@gems-of-ts/router`](libs/router) | Schema-typed router with separate `server` / `client` entrypoints and an in-process caller. | ✅ (early) |
+| [`@gems-of-ts/router`](libs/router) | Model-typed router with separate `server` / `client` entrypoints and an in-process caller. | ✅ (early) |
 
-### `@gems-of-ts/schema`
+### `@gems-of-ts/model`
 
 ```ts
-const t = createSchemaBuilder({
-  stringFormats: { ip: { validate: (v) => (isIPv4(v) ? undefined : 'Expected an IP') } },
-})
+import { createTypeBuilder, mutate } from '@gems-of-ts/model'
 
-class User extends t.object({
-  id: t.number(),
-  name: t.string((s) => s.length((n) => n.min(1))),
-  email: t.string((s) => s.format('email', { domain: (d) => d.matches(/^example\.com$/) })),
-  website: t.string((s) => s.format('url')).optional(),
+const model = createTypeBuilder()
+
+class User extends model.object({
+  id: model.uuid(),
+  name: model.string({ length: { min: 1 } }),
+  email: model.email({ length: { max: 50 } }),
+  website: model.URL().optional(),
 }) {}
 
 const user = User.parse(input)     // instance of User — `instanceof` holds
-user.name = ''                     // throws SchemaParseError (validated mutation)
+user.name = ''                     // ❌ readonly / frozen
+const next = mutate(user, (draft) => {
+  draft.name = 'Grace'             // validated, structural sharing
+})
 User.toJSONSchema()                // native JSON Schema
-User.compile()(input)              // ~2.8× faster standalone validator
 ```
 
-Highlights: immutable callback/view DSL · per-builder format registry (add /
-override, with sub-string *parts* like `email.domain` and `url.host`) · branded
-formatted strings (`string & { __format: 'email' }`) · optional · literals
-(`'admin'`, `null`) · arrays with validated mutators · JSON Schema ·
-`parse` / `safeParse` with structured issues · `compile()` for a standalone fast
-validator.
+Highlights: `createTypeBuilder` factory · every JSON Schema string format built
+in (`uuid`, `ipv4`, `date-time`, `ipv6`, `uri`, …) · `int` · object combinators
+(`pick`/`omit`/`partial`/`required`/`merge`) · optional, nullable, and validated
+defaults · literals, enums, tuples, records, discriminated unions, intersections
+· class output with subclass inference · deeply readonly/frozen values ·
+structural-sharing `mutate` · native JSON Schema.
 
 ### `@gems-of-ts/parser`
 
@@ -93,11 +98,12 @@ configurable insignificant whitespace.
 ### `@gems-of-ts/router`
 
 ```ts
+const model = createTypeBuilder()
 const app = world<{ userId: string | null }>()
 
 const appRoutes = router({
   getUser: app.query({
-    input: object({ id: string((s) => s.length((n) => n.min(1))) }),
+    input: model.object({ id: model.string({ length: { min: 1 } }) }),
     auth: (ctx) => ctx.userId !== null,
     handler: ({ input, ctx }) => ({ id: input.id, requestedBy: ctx.userId }),
   }),
@@ -108,19 +114,28 @@ createClient<typeof appRoutes>({ link })        // typed client, nesting mirrore
 ```
 
 Highlights: `world<Context>()` route definitions (`query`/`mutation`/`subscription`)
-· schema-validated input · `auth` predicate · separate `server` and `client`
+· model-validated input · `auth` predicate · separate `server` and `client`
 entrypoints · a `Link` abstraction so the client can talk to HTTP, Convex, or an
 in-process caller.
 
 ## Progress so far
 
-- **Schema** — callback/view DSL over a class-based engine; formats with
-  sub-string parts, per-builder registries and overrides; branded strings; native
-  JSON Schema; `compile()` and `safeParse`; 46 tests.
+- **Model** — object-syntax schemas via `createTypeBuilder` for `number`, `string`, `boolean`, `null`,
+  `literal`, `enum`, `tuple`, `list`, `record`, `object`, `union`
+  (discriminated), and `intersection`; `multipleOf`, string text predicates,
+  list length bounds, built-in string formats, and `int`;
+  object combinators
+  (`pick`/`omit`/`partial`/`required`/`merge`); `.nullable()` and
+  definition-validated `.default()`; mutually exclusive options (`eq` vs
+  bounds/constraints, `min`/`gt`, `max`/`lt`), literal inference for `eq`,
+  runtime errors for states TypeScript cannot express (`min > max`, empty
+  ranges, invalid lengths), class output with subclass inference, frozen
+  readonly outputs, an Immer-style `mutate` with structural sharing, and a
+  chainable `.optional()`; 208 tests.
 - **Parser** — full grammar DSL with end-to-end AST type inference and name
   safety; JSON, XML, S-expression, semver, query-string and TOML grammars in the
   test suite; `location` and `compile` settings; 54 tests.
-- **Router** — schema-typed caller + client, 5 tests.
+- **Router** — model-typed caller + client, 5 tests.
 - **Tooling** — pnpm workspace + catalog, **Turborepo** (build / lint / typecheck /
   test), build via `tsup` (JS) + `tsc` (`.d.ts`), and publishing to **npm and JSR**
   via `scripts/publish.mjs` + GitHub Actions (CI, and publish-on-change).
@@ -134,11 +149,11 @@ in-process caller.
 **1. More feature parity with TypeBox / Zod** — *minus* `refine` / `superRefine`,
 which cannot be serialized to a JSON object:
 
-- unions, discriminated unions, intersections, tuples, records, literals, enums
-- recursive / lazy schemas
-- defaults, coercion, and (serializable) transforms
+- general unions, recursive / lazy schemas, and conditional schemas
+- transforms and coercion
 - richer error formatting and issue metadata
-- more built-in formats, and a JSON-Schema-first builder surface
+- JSON Schema input and broader JSON Schema keyword coverage
+- collection-level constraints (list length, record key schemas, object strictness)
 
 **2. State machines + durable workflows** — a new gem (à la XState + durable
 execution): typed events/context, and workflows that can suspend/resume and
@@ -160,7 +175,7 @@ playground for building grammars/schemas in the browser.
 ```
 .
 ├── libs/
-│   ├── schema/     @gems-of-ts/schema
+│   ├── model/      @gems-of-ts/model
 │   ├── parser/     @gems-of-ts/parser
 │   └── router/     @gems-of-ts/router
 ├── scripts/        analyze-profile.mjs, publish.mjs
@@ -180,7 +195,6 @@ pnpm run lint
 
 # per-package
 pnpm --filter @gems-of-ts/parser bench
-pnpm --filter @gems-of-ts/schema bench
 ```
 
 Packages publish to **npm** and **JSR** under the `@gems-of-ts` scope;

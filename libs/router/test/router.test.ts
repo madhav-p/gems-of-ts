@@ -1,9 +1,9 @@
-import { createSchemaBuilder } from '@gems-of-ts/schema'
+import { createTypeBuilder } from '@gems-of-ts/model'
 import { describe, expect, it } from 'vitest'
 import { createClient } from '../src/client'
 import { RouterError, createCaller, router, world } from '../src/server'
 
-const { number, object, string } = createSchemaBuilder()
+const model = createTypeBuilder()
 
 type AppContext = { userId: string | null }
 
@@ -14,12 +14,12 @@ const appRouter = router({
     handler: () => ({ ok: true }),
   }),
   getUser: app.query({
-    input: object({ id: string((sv) => sv.length((nv) => nv.min(1))) }),
+    input: model.object({ id: model.string({ length: { min: 1 } }) }),
     auth: (ctx) => ctx.userId !== null,
     handler: ({ input, ctx }) => ({ id: input.id, requestedBy: ctx.userId }),
   }),
   createUser: app.mutation({
-    input: object({ name: string((sv) => sv.length((nv) => nv.min(1))) }),
+    input: model.object({ name: model.string({ length: { min: 1 } }) }),
     handler: ({ input }) => ({ id: input.name.toLowerCase() }),
   }),
   onUser: app.route({
@@ -28,7 +28,7 @@ const appRouter = router({
   }),
   posts: router({
     list: app.query({
-      input: object({ limit: number((nv) => nv.format('int').min(0)).optional() }),
+      input: model.object({ limit: model.int({ min: 0 }).optional() }),
       handler: ({ input }) => ({ limit: input.limit ?? 10 }),
     }),
   }),

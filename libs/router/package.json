@@ -1,7 +1,7 @@
 {
   "name": "@gems-of-ts/router",
   "version": "0.0.0",
-  "description": "Schema-typed router with separate server and client entrypoints.",
+  "description": "Model-typed router with separate server and client entrypoints.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -31,7 +31,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@gems-of-ts/schema": "workspace:*"
+    "@gems-of-ts/model": "workspace:*"
   },
   "devDependencies": {
     "oxlint": "catalog:",
