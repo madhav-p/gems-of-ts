@@ -1,7 +1,19 @@
 import { boolean } from './boolean'
+import {
+  date,
+  dateTime,
+  time,
+  type DateFactory,
+  type DateTimeFactory,
+  type TimeFactory,
+} from './datetime'
+import { duration, type DurationFactory } from './duration'
+import { email, idnEmail, type EmailFactory } from './email'
 import { enumType } from './enum'
 import type { StringFormat } from './formats'
+import { hostname, idnHostname, type HostnameFactory } from './hostname'
 import { intersection } from './intersection'
+import { ipv4, type IPv4Factory } from './ipv4'
 import { list } from './list'
 import { literal } from './literal'
 import { nullType } from './null'
@@ -11,25 +23,22 @@ import { record } from './record'
 import { string, type StringOptions, type StringSchema } from './string'
 import { tuple } from './tuple'
 import { union } from './union'
+import { uuid, type UUIDFactory } from './uuid'
+import {
+  iri,
+  iriReference,
+  uri,
+  uriReference,
+  url,
+  type URIFactory,
+  type URLFactory,
+} from './url'
 
 /**
  * Validators accepted by a string-format type. Deliberately separate from
  * `StringOptions` so formats can diverge from the base string API later.
  */
 export type StringFormatValidators =
-  | {
-      eq: string
-      length?: never
-      pattern?: never
-    }
-  | {
-      eq?: never
-      length?: NumberOptions
-      pattern?: RegExp
-    }
-
-/** Email-specific validators. Currently the same shape, intentionally separate. */
-export type EmailValidators =
   | {
       eq: string
       length?: never
@@ -54,9 +63,6 @@ export type IntValidators = IntBounds & { multipleOf?: number }
 export type StringFormatFactory = (
   validators?: StringFormatValidators,
 ) => StringSchema<string>
-export type EmailFactory = (
-  validators?: EmailValidators,
-) => StringSchema<string>
 export type IntFactory = (validators?: IntValidators) => NumberSchema<number>
 
 export type ModelBuilder = {
@@ -77,21 +83,21 @@ export type ModelBuilder = {
   intersection: typeof intersection
 
   email: EmailFactory
-  idnEmail: StringFormatFactory
-  URL: StringFormatFactory
-  uri: StringFormatFactory
-  iri: StringFormatFactory
-  uriReference: StringFormatFactory
-  iriReference: StringFormatFactory
-  hostname: StringFormatFactory
-  idnHostname: StringFormatFactory
-  ipv4: StringFormatFactory
+  idnEmail: EmailFactory
+  URL: URLFactory
+  uri: URIFactory
+  iri: URIFactory
+  uriReference: URIFactory
+  iriReference: URIFactory
+  hostname: HostnameFactory
+  idnHostname: HostnameFactory
+  ipv4: IPv4Factory
   ipv6: StringFormatFactory
-  uuid: StringFormatFactory
-  date: StringFormatFactory
-  time: StringFormatFactory
-  dateTime: StringFormatFactory
-  duration: StringFormatFactory
+  uuid: UUIDFactory
+  date: DateFactory
+  time: TimeFactory
+  dateTime: DateTimeFactory
+  duration: DurationFactory
   uriTemplate: StringFormatFactory
   jsonPointer: StringFormatFactory
   relativeJsonPointer: StringFormatFactory
@@ -101,10 +107,6 @@ export type ModelBuilder = {
 function formatType(format: StringFormat): StringFormatFactory {
   return (validators) =>
     string({ ...validators, format } as StringOptions)
-}
-
-function emailType(validators?: EmailValidators): StringSchema<string> {
-  return string({ ...validators, format: 'email' } as StringOptions)
 }
 
 function intType(validators?: IntValidators): NumberSchema<number> {
@@ -129,22 +131,22 @@ function createBaseBuilder(): ModelBuilder {
     union,
     intersection,
 
-    email: emailType,
-    idnEmail: formatType('idn-email'),
-    URL: formatType('uri'),
-    uri: formatType('uri'),
-    iri: formatType('iri'),
-    uriReference: formatType('uri-reference'),
-    iriReference: formatType('iri-reference'),
-    hostname: formatType('hostname'),
-    idnHostname: formatType('idn-hostname'),
-    ipv4: formatType('ipv4'),
+    email,
+    idnEmail,
+    URL: url,
+    uri,
+    iri,
+    uriReference,
+    iriReference,
+    hostname,
+    idnHostname,
+    ipv4,
     ipv6: formatType('ipv6'),
-    uuid: formatType('uuid'),
-    date: formatType('date'),
-    time: formatType('time'),
-    dateTime: formatType('date-time'),
-    duration: formatType('duration'),
+    uuid,
+    date,
+    time,
+    dateTime,
+    duration,
     uriTemplate: formatType('uri-template'),
     jsonPointer: formatType('json-pointer'),
     relativeJsonPointer: formatType('relative-json-pointer'),

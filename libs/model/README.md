@@ -209,13 +209,97 @@ model.email({ eq: 'ada@example.com' })
 model.email({ format: 'email' }) // ❌ type error
 ```
 
-You can define the same wrapper yourself:
+### Format property filters
+
+Formats with stable parts accept filters for those parts. A part filter names the
+part (`domain`, `year`, `octet1`, `hostname`, …) and is validated against that
+part; all part filters compile into one JSON Schema `pattern`:
 
 ```ts
-import type { EmailValidators } from '@gems-of-ts/model'
+model.email({
+  local: { matches: /^[a-z.]+$/ },
+  domain: { endsWith: '.com' },
+})
 
-const email = (emailValidators?: EmailValidators) =>
-  model.string({ ...emailValidators, format: 'email' })
+model.date({ year: { min: 2020 }, month: { eq: 2 }, day: { max: 29 } })
+model.time({ hour: { min: 9, max: 17 }, offset: { eq: 'Z' } })
+model.duration({ hours: { max: 24 } })
+model.ipv4({ octet1: { eq: 192 }, octet2: { eq: 168 } })
+model.hostname({ tld: { eq: 'com' }, labels: { min: 2 } })
+model.uuid({ version: { eq: 4 }, variant: { min: 8, max: 11 } })
+
+model.URL({
+  protocol: { eq: 'https' },
+  hostname: { eq: '127.0.0.1' },
+  port: { min: 3000, max: 5000 },
+  pathname: { startsWith: '/api' },
+})
+
+model.uri({
+  scheme: { eq: 'https' },
+  hostname: { eq: 'example.com' },
+  query: { eq: 'x=1' },
+})
+```
+
+| Format | Parts |
+| --- | --- |
+| `email`, `idnEmail` | `local`, `domain` |
+| `URL` | `protocol`, `username`, `password`, `host`, `hostname`, `port`, `pathname`, `search`, `hash` |
+| `uri`, `iri` | `scheme`, `username`, `password`, `host`, `hostname`, `port`, `path`, `query`, `fragment` |
+| `uriReference`, `iriReference` | same parts as `uri`; the scheme is optional |
+| `date` | `year`, `month`, `day` |
+| `time` | `hour`, `minute`, `second`, `fraction`, `offset` |
+| `dateTime` | date and time parts |
+| `duration` | `years`, `months`, `weeks`, `days`, `hours`, `minutes`, `seconds` |
+| `ipv4` | `octet1`–`octet4` |
+| `hostname`, `idnHostname` | `tld`, `labels` |
+| `uuid` | `version`, `variant` (hex nibbles, `0..15`) |
+
+- The format's own validator still checks its base syntax (for example leap
+  years, duration ordering, or IP octet rules); the emitted `pattern` encodes
+  the part filters.
+- String parts accept `eq`, `length`, `matches` (a full-part regex),
+  `startsWith`, `endsWith`, and `includes`.
+- Integer parts accept `eq`, `min`/`max`, and `gt`/`lt`. `multipleOf` is not
+  supported because the filters compile to a regex.
+- `matches` is applied to the extracted part at runtime. Because it is embedded
+  in the emitted pattern, keep it scoped to the part; a pattern that can consume
+  a delimiter may be more permissive in JSON Schema than at runtime.
+- A part filter requires the part to be present. `duration({ hours: … })`
+  therefore requires an hours component; `URL({ search: … })` requires `?…`.
+- Whole-string `eq` cannot be combined with part filters. `host` includes the
+  port, so it cannot be combined with `hostname` or `port`.
+- `length` and `pattern` still apply to the whole string and can be combined
+  with part filters.
+- Ports are `0..65535` and must be explicit and written without leading zeros
+  (`https://example.com` does not match `port: { eq: 443 }`). IPv4 octets are
+  `0..255`; date and time fields are checked against their domains.
+- URL parts match the text as written: `search` includes `?`, `hash` includes
+  `#`, and `pathname` may be empty. URI `query` and `fragment` exclude their
+  delimiters.
+- `fraction` is the digits after `.`; `offset` is `Z`/`z` or `±HH:MM`.
+  `duration.seconds` is a string part because it may contain a decimal; the
+  other duration components are integers.
+- `hostname.labels` is the total number of labels, including the TLD.
+- `uuid` version/variant are integer nibbles: `8..11` means `8`, `9`, `a`, `b`.
+- Hosts, domains, and schemes match case-insensitively; local parts, paths,
+  queries, and fragments are case-sensitive.
+- Date parts outside their domains, empty ranges, impossible exact dates,
+  duplicate `eq`/bound combinations, unknown part names, and literals containing
+  URL delimiters throw `ModelDefinitionError` when the schema is created.
+- `ipv6`, `uriTemplate`, `jsonPointer`, `relativeJsonPointer`, and `regex` keep
+  whole-string `eq`/`length`/`pattern` only: their parts are either ambiguous
+  (IPv6 `::`) or not stable text positions.
+
+Some combinations have no unambiguous meaning, so they are rejected at both the
+type level and schema-creation time:
+
+```ts
+model.URL({ host: { eq: 'a' }, hostname: { eq: 'b' } }) // ❌ type error
+model.URL({ host: { eq: 'a' }, port: { eq: 1 } })       // ❌ type error
+model.email({ eq: 'ada@example.com', local: { eq: 'ada' } }) // ❌ type error
+model.date({ month: { min: 13 } }) // throws ModelDefinitionError
 ```
 
 ## Boolean
@@ -653,15 +737,21 @@ import {
   type Constructable,
   type DeepMutable,
   type DeepReadonly,
+  type DateValidators,
+  type DateTimeValidators,
   type DefaultSchema,
   type DiscriminatedUnionSchema,
   type Draft,
+  type DurationValidators,
   type EmailValidators,
   type EnumJsonSchema,
   type EnumSchema,
+  type HostnameValidators,
   type InferSchema,
   type InferShape,
+  type IntegerPartValidators,
   type IntValidators,
+  type IPv4Validators,
   type IntersectionElement,
   type IntersectionOutput,
   type IntersectionSchema,
@@ -691,6 +781,7 @@ import {
   type OutputOf,
   type ParseResult,
   type PartialShape,
+  type PartLengthOptions,
   type PickShape,
   type ReadonlyList,
   type ReadonlyRecord,
@@ -707,11 +798,18 @@ import {
   type StringJsonSchema,
   type StringOptions,
   type StringOutput,
+  type StringPartValidators,
   type StringSchema,
+  type TimeValidators,
   type TupleElement,
   type TupleJsonSchema,
   type TupleSchema,
   type UnionVariant,
+  type URIFactory,
+  type URIValidators,
+  type URLSchema,
+  type URLValidators,
+  type UUIDValidators,
 } from '@gems-of-ts/model'
 
 const model = createTypeBuilder()
@@ -757,21 +855,21 @@ type ModelBuilder = {
   >(items: S): IntersectionSchema<S>
 
   email(validators?: EmailValidators): StringSchema<string>
-  idnEmail(validators?: StringFormatValidators): StringSchema<string>
-  URL(validators?: StringFormatValidators): StringSchema<string>
-  uri(validators?: StringFormatValidators): StringSchema<string>
-  iri(validators?: StringFormatValidators): StringSchema<string>
-  uriReference(validators?: StringFormatValidators): StringSchema<string>
-  iriReference(validators?: StringFormatValidators): StringSchema<string>
-  hostname(validators?: StringFormatValidators): StringSchema<string>
-  idnHostname(validators?: StringFormatValidators): StringSchema<string>
-  ipv4(validators?: StringFormatValidators): StringSchema<string>
+  idnEmail(validators?: EmailValidators): StringSchema<string>
+  URL(validators?: URLValidators): URLSchema
+  uri(validators?: URIValidators): StringSchema<string>
+  iri(validators?: URIValidators): StringSchema<string>
+  uriReference(validators?: URIValidators): StringSchema<string>
+  iriReference(validators?: URIValidators): StringSchema<string>
+  hostname(validators?: HostnameValidators): StringSchema<string>
+  idnHostname(validators?: HostnameValidators): StringSchema<string>
+  ipv4(validators?: IPv4Validators): StringSchema<string>
   ipv6(validators?: StringFormatValidators): StringSchema<string>
-  uuid(validators?: StringFormatValidators): StringSchema<string>
-  date(validators?: StringFormatValidators): StringSchema<string>
-  time(validators?: StringFormatValidators): StringSchema<string>
-  dateTime(validators?: StringFormatValidators): StringSchema<string>
-  duration(validators?: StringFormatValidators): StringSchema<string>
+  uuid(validators?: UUIDValidators): StringSchema<string>
+  date(validators?: DateValidators): StringSchema<string>
+  time(validators?: TimeValidators): StringSchema<string>
+  dateTime(validators?: DateTimeValidators): StringSchema<string>
+  duration(validators?: DurationValidators): StringSchema<string>
   uriTemplate(validators?: StringFormatValidators): StringSchema<string>
   jsonPointer(validators?: StringFormatValidators): StringSchema<string>
   relativeJsonPointer(validators?: StringFormatValidators): StringSchema<string>
@@ -782,8 +880,11 @@ function createTypeBuilder<D extends Record<string, unknown> = {}>(
   define?: (model: ModelBuilder) => D,
 ): Omit<ModelBuilder, keyof D> & D
 
-// `EmailValidators`, `StringFormatValidators`, and `IntValidators` are separate
-// from `StringOptions`/`NumberOptions`; format types do not accept `format`.
+// `EmailValidators`, `DateValidators`, `TimeValidators`, `DateTimeValidators`,
+// `DurationValidators`, `HostnameValidators`, `IPv4Validators`,
+// `UUIDValidators`, `URIValidators`, `URLValidators`, `StringFormatValidators`,
+// and `IntValidators` are separate from `StringOptions`/`NumberOptions`; format
+// types do not accept `format`.
 
 type UnionOutput<V, D extends string> = {
   [K in keyof V]: {
