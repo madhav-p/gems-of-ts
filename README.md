@@ -70,7 +70,9 @@ User.toJSONSchema()                // native JSON Schema
 ```
 
 Highlights: `createTypeBuilder` factory · every JSON Schema string format built
-in (`uuid`, `ipv4`, `date-time`, `ipv6`, `uri`, …) · `int` · object combinators
+in (`uuid`, `ipv4`, `date-time`, `ipv6`, `uri`, …) · format-property filters
+(`email.domain`, `date.year`, `duration.hours`, `ipv4.octet1`, `URL.hostname`,
+…) that compile to one pattern · `int` · object combinators
 (`pick`/`omit`/`partial`/`required`/`merge`) · optional, nullable, and validated
 defaults · literals, enums, tuples, records, discriminated unions, intersections
 · class output with subclass inference · deeply readonly/frozen values ·
@@ -123,15 +125,17 @@ in-process caller.
 - **Model** — object-syntax schemas via `createTypeBuilder` for `number`, `string`, `boolean`, `null`,
   `literal`, `enum`, `tuple`, `list`, `record`, `object`, `union`
   (discriminated), and `intersection`; `multipleOf`, string text predicates,
-  list length bounds, built-in string formats, and `int`;
-  object combinators
+  list length bounds, built-in string formats with property filters (email
+  local/domain, URL/URI components, date/time fields, duration components, IPv4
+  octets, hostname tld/labels, UUID version/variant) that compile to one
+  pattern, and `int`; object combinators
   (`pick`/`omit`/`partial`/`required`/`merge`); `.nullable()` and
   definition-validated `.default()`; mutually exclusive options (`eq` vs
   bounds/constraints, `min`/`gt`, `max`/`lt`), literal inference for `eq`,
   runtime errors for states TypeScript cannot express (`min > max`, empty
   ranges, invalid lengths), class output with subclass inference, frozen
   readonly outputs, an Immer-style `mutate` with structural sharing, and a
-  chainable `.optional()`; 208 tests.
+  chainable `.optional()`; 267 tests.
 - **Parser** — full grammar DSL with end-to-end AST type inference and name
   safety; JSON, XML, S-expression, semver, query-string and TOML grammars in the
   test suite; `location` and `compile` settings; 54 tests.

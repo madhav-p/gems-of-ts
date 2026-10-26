@@ -43,8 +43,6 @@ export {
 
 export { createTypeBuilder } from './builder'
 export type {
-  EmailFactory,
-  EmailValidators,
   IntFactory,
   IntValidators,
   ModelBuilder,
@@ -54,6 +52,32 @@ export type {
 
 export { stringFormats } from './formats'
 export type { StringFormat, StringFormatSpec, StringValidator } from './formats'
+
+export type {
+  IntegerPartValidators,
+  PartLengthOptions,
+  StringPartValidators,
+} from './parts'
+export type {
+  URIFactory,
+  URIValidators,
+  URLFactory,
+  URLSchema,
+  URLValidators,
+} from './url'
+export type { EmailFactory, EmailValidators } from './email'
+export type {
+  DateFactory,
+  DateTimeFactory,
+  DateTimeValidators,
+  DateValidators,
+  TimeFactory,
+  TimeValidators,
+} from './datetime'
+export type { DurationFactory, DurationValidators } from './duration'
+export type { HostnameFactory, HostnameValidators } from './hostname'
+export type { IPv4Factory, IPv4Validators } from './ipv4'
+export type { UUIDFactory, UUIDValidators } from './uuid'
 
 export { mutate } from './mutate'
 
